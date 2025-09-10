@@ -1,0 +1,208 @@
+// Replace your generateSimpleTimetable function with this improved version:
+
+const generateSimpleTimetable = (): TimetableSlot[] => {
+  const timetable: TimetableSlot[] = [];
+  const timeSlots = generateTimeSlots();
+  
+  // Initialize timetable structure
+  const weeklySchedule: { [day: string]: { [time: string]: TimetableSlot | null } } = {};
+  formData.workingDays.forEach(day => {
+    weeklySchedule[day] = {};
+    timeSlots.forEach(time => {
+      weeklySchedule[day][time] = null;
+    });
+  });
+
+  // Create subject sessions that need to be distributed
+  const sessionsToSchedule: { subjectId: string, subject: Subject, sessionNumber: number }[] = [];
+  subjects.forEach(subject => {
+    for (let i = 0; i < subject.weeklyHours; i++) {
+      sessionsToSchedule.push({ 
+        subjectId: subject.id, 
+        subject: subject, 
+        sessionNumber: i + 1 
+      });
+    }
+  });
+
+  // Shuffle sessions to avoid always placing same subjects first
+  for (let i = sessionsToSchedule.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [sessionsToSchedule[i], sessionsToSchedule[j]] = [sessionsToSchedule[j], sessionsToSchedule[i]];
+  }
+
+  // Track how many sessions of each subject are scheduled per day
+  const subjectDayCount: { [subjectId: string]: { [day: string]: number } } = {};
+  subjects.forEach(subject => {
+    subjectDayCount[subject.id] = {};
+    formData.workingDays.forEach(day => {
+      subjectDayCount[subject.id][day] = 0;
+    });
+  });
+
+  // Function to find the best slot for a session
+  const findBestSlot = (session: { subjectId: string, subject: Subject }) => {
+    const availableSlots: { day: string, time: string, score: number }[] = [];
+    
+    formData.workingDays.forEach(day => {
+      // Check if faculty is available on this day
+      const facultyMember = faculty.find(f => f.name === session.subject.faculty);
+      if (!facultyMember?.availableDays.includes(day)) return;
+      
+      timeSlots.forEach(time => {
+        // Skip lunch break slot (middle slot)
+        const timeIndex = timeSlots.indexOf(time);
+        if (timeIndex === Math.floor(timeSlots.length / 2)) return;
+        
+        // Check if slot is free
+        if (weeklySchedule[day][time] !== null) return;
+        
+        // Calculate preference score (lower is better)
+        let score = 0;
+        
+        // Heavily penalize if subject already has a class on this day
+        if (subjectDayCount[session.subjectId][day] > 0) {
+          score += 100; // Very high penalty
+        }
+        
+        // Prefer spreading across different days
+        const totalSessionsThisDay = Object.keys(subjectDayCount).reduce((sum, subjId) => {
+          return sum + subjectDayCount[subjId][day];
+        }, 0);
+        score += totalSessionsThisDay * 2;
+        
+        // Slight preference for morning slots for theory, afternoon for practicals
+        if (session.subject.type === 'theory' && timeIndex > timeSlots.length / 2) {
+          score += 1;
+        }
+        if (session.subject.type === 'practical' && timeIndex < timeSlots.length / 2) {
+          score += 1;
+        }
+        
+        availableSlots.push({ day, time, score });
+      });
+    });
+    
+    // Sort by score (best first) and return the best slot
+    availableSlots.sort((a, b) => a.score - b.score);
+    return availableSlots.length > 0 ? availableSlots[0] : null;
+  };
+
+  // Schedule all sessions
+  sessionsToSchedule.forEach(session => {
+    const bestSlot = findBestSlot(session);
+    
+    if (bestSlot) {
+      // Choose appropriate classroom
+      const suitableClassroom = classrooms.find(room => 
+        (session.subject.type === 'practical' && room.type === 'lab') ||
+        (session.subject.type !== 'practical' && room.type === 'lecture')
+      ) || classrooms[0];
+
+      const timetableSlot: TimetableSlot = {
+        day: bestSlot.day,
+        time: bestSlot.time,
+        subject: `${session.subject.name} (${session.subject.code})`,
+        faculty: session.subject.faculty,
+        classroom: suitableClassroom.name,
+        type: session.subject.type
+      };
+
+      weeklySchedule[bestSlot.day][bestSlot.time] = timetableSlot;
+      subjectDayCount[session.subjectId][bestSlot.day]++;
+    }
+  });
+
+  // Convert schedule to timetable format and fill empty slots
+  formData.workingDays.forEach(day => {
+    timeSlots.forEach(time => {
+      const timeIndex = timeSlots.indexOf(time);
+      
+      // Skip lunch break slot
+      if (timeIndex === Math.floor(timeSlots.length / 2)) {
+        timetable.push({
+          day: day,
+          time: time,
+          subject: "Lunch Break",
+          faculty: "",
+          classroom: "",
+          type: "theory"
+        });
+        return;
+      }
+
+      const scheduledSlot = weeklySchedule[day][time];
+      if (scheduledSlot) {
+        timetable.push(scheduledSlot);
+      } else {
+        // Free period
+        timetable.push({
+          day: day,
+          time: time,
+          subject: "Free Period",
+          faculty: "",
+          classroom: "",
+          type: "theory"
+        });
+      }
+    });
+  });
+
+  return timetable;
+};
+
+// Updated generateTimetable function with proper toast management:
+const generateTimetable = async () => {
+  if (subjects.length === 0) {
+    toast.error("Please add at least one subject");
+    return;
+  }
+
+  if (formData.workingDays.length === 0) {
+    toast.error("Please select at least one working day");
+    return;
+  }
+
+  setIsGenerating(true);
+  
+  // Show loading toast and store the toast ID
+  const loadingToastId = toast.loading("Generating optimized timetable...", {
+    description: "This may take a few moments"
+  });
+
+  // Simulate processing time
+  setTimeout(() => {
+    try {
+      const newTimetable = generateSimpleTimetable();
+      setGeneratedTimetable(newTimetable);
+      
+      // Save to localStorage for persistence
+      localStorage.setItem('generatedTimetable', JSON.stringify({
+        timetable: newTimetable,
+        config: formData,
+        subjects: subjects,
+        timestamp: new Date().toISOString()
+      }));
+
+      setIsGenerating(false);
+      setShowTimetable(true);
+      
+      // Dismiss the loading toast first
+      toast.dismiss(loadingToastId);
+      
+      // Then show success toast
+      toast.success("Timetable generated successfully!", {
+        description: "Review your generated timetable and make adjustments if needed"
+      });
+      
+    } catch (error) {
+      setIsGenerating(false);
+      
+      // Dismiss loading toast and show error
+      toast.dismiss(loadingToastId);
+      toast.error("Failed to generate timetable", {
+        description: "Please check your inputs and try again"
+      });
+    }
+  }, 3000);
+};
