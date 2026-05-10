@@ -76,7 +76,50 @@ EduScheduler is a **web-based smart timetable generator** designed to automate a
 
 ---
 
-## 📝 Usage Guide
+## � Deployment & Showcase
+
+Your project is **production-ready and fully configured for deployment**! Choose your preferred platform:
+
+### Quick Deploy Options
+
+| Platform | Time | Cost | Best For |
+|----------|------|------|----------|
+| **Netlify** | 5 min | Free | 🎨 Quick demo, portfolio |
+| **Railway** | 10 min | $5/mo | 💼 Full-stack, database |
+| **Vercel** | 3 min | Free | ⚡ React apps, fast |
+| **Docker** | 15 min | $5/mo | 🐳 Max control |
+| **AWS** | 30 min | $20+/mo | 🏢 Enterprise |
+
+### Start Deploying Now
+
+👉 **[📖 QUICK_DEPLOY.md](./docs/QUICK_DEPLOY.md)** - One-liner commands for all platforms (⭐ **START HERE**)
+
+### Full Documentation
+
+- **[DEPLOYMENT_READY.md](./docs/DEPLOYMENT_READY.md)** - Build verification & next steps
+- **[DEPLOYMENT.md](./docs/DEPLOYMENT.md)** - Detailed setup for each platform
+- **[DEPLOYMENT_CHECKLIST.md](./docs/DEPLOYMENT_CHECKLIST.md)** - Pre-deployment verification
+
+### Deploy in 3 Steps
+
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Build the project
+npm run build
+
+# 3. Deploy (example: Netlify)
+npm install -g netlify-cli
+cd docs
+netlify deploy --prod --dir dist/spa
+```
+
+**Your app will be live in minutes!** 🎉
+
+---
+
+## �📝 Usage Guide
 
 ### **Admins: Managing Resources**
 

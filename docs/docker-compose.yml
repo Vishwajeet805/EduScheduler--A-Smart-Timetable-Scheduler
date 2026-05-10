@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      NODE_ENV: production
+      VITE_PUBLIC_BUILDER_KEY: ${VITE_PUBLIC_BUILDER_KEY:-test-key}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/edusched}
+    depends_on:
+      - db
+    networks:
+      - edusched-network
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: edusched
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - edusched-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+
+networks:
+  edusched-network:
+    driver: bridge

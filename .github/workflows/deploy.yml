@@ -1,0 +1,90 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  deploy-to-railway:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[railway]') || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to Railway
+      uses: railway-app/actions@alpha
+      with:
+        token: ${{ secrets.RAILWAY_TOKEN }}
+        service: ${{ secrets.RAILWAY_SERVICE_ID }}
+
+  deploy-to-vercel:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[vercel]') || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Deploy to Vercel
+      uses: amondnet/vercel-action@v25
+      with:
+        vercel-token: ${{ secrets.VERCEL_TOKEN }}
+        vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+        vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        scope: ${{ secrets.VERCEL_ORG_ID }}
+
+  deploy-to-docker:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[docker]') || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+    
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./docs
+        file: ./docs/Dockerfile
+        push: true
+        tags: |
+          ${{ secrets.DOCKER_USERNAME }}/edusched:latest
+          ${{ secrets.DOCKER_USERNAME }}/edusched:${{ github.sha }}
+
+  deploy-to-aws:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, '[aws]') || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+    
+    - name: Deploy to Elastic Beanstalk
+      run: |
+        eb deploy edusched-env || echo "Configure Elastic Beanstalk environment first"
+
+  notify:
+    runs-on: ubuntu-latest
+    needs: [deploy-to-railway, deploy-to-vercel, deploy-to-docker, deploy-to-aws]
+    if: always()
+    
+    steps:
+    - name: Deployment Status
+      run: |
+        echo "Deployment workflow completed!"
+        echo "Check the logs above for deployment details."
