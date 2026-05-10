@@ -1,10 +1,14 @@
 [build]
-  command = "npm --prefix docs run build"
+  command = "npm run build"
   publish = "docs/dist/spa"
   functions = "docs/netlify/functions"
 
 [[redirects]]
-  force = true
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
